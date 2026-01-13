@@ -1,107 +1,129 @@
-#!/usr/bin/env python3
-import sys
-import subprocess
-import gi
+#!/usr/bin/env ruby
+require 'gtk3'
+require 'open3'
 
-gi.require_version('Gtk', '4.0')
-from gi.repository import Gtk, Gdk, GLib
+class EmergencyInputApp
+  def initialize
+    @app = Gtk::Application.new("com.omarchy.emergency.input", :flags_none)
 
-class EmergencyInputApp(Gtk.Application):
-    def __init__(self):
-        super().__init__(application_id="com.omarchy.emergency.input")
+    @app.signal_connect "activate" do |application|
+      build_ui(application)
+    end
+  end
 
-    def do_activate(self):
-        window = Gtk.ApplicationWindow(application=self)
-        window.set_title("Emergency JP Input")
-        window.set_default_size(600, 400)
-        
-        # Main Layout
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        vbox.set_margin_top(10)
-        vbox.set_margin_bottom(10)
-        vbox.set_margin_start(10)
-        vbox.set_margin_end(10)
-        window.set_child(vbox)
+  def run
+    @app.run
+  end
 
-        # Instructions
-        label = Gtk.Label(label="Type text. Press Ctrl+Enter to Copy & Close.")
-        label.set_halign(Gtk.Align.START)
-        vbox.append(label)
+  private
 
-        # Text Area
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_vexpand(True)
-        
-        self.text_view = Gtk.TextView()
-        self.text_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
-        self.text_view.set_left_margin(10)
-        self.text_view.set_right_margin(10)
-        self.text_view.set_top_margin(10)
-        self.text_view.set_bottom_margin(10)
-        
-        # Increase font size via CSS
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"textview { font-size: 16pt; font-family: Sans; }")
-        self.text_view.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        
-        self.text_buffer = self.text_view.get_buffer()
-        scrolled_window.set_child(self.text_view)
-        vbox.append(scrolled_window)
+  def build_ui(application)
+    window = Gtk::ApplicationWindow.new(application)
+    window.set_title("Emergency JP Input")
+    window.set_default_size(600, 400)
 
-        # Buttons
-        bbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        bbox.set_halign(Gtk.Align.END)
-        vbox.append(bbox)
+    # Main Layout
+    vbox = Gtk::Box.new(:vertical, 10)
+    vbox.margin_top = 10
+    vbox.margin_bottom = 10
+    vbox.margin_start = 10
+    vbox.margin_end = 10
+    window.add(vbox)
 
-        btn_cancel = Gtk.Button(label="Cancel")
-        btn_cancel.connect("clicked", lambda x: window.close())
-        bbox.append(btn_cancel)
+    # Instructions
+    label = Gtk::Label.new("Type text. Press Ctrl+Enter to Copy & Close.")
+    label.halign = :start
+    vbox.pack_start(label, :expand => false, :fill => false, :padding => 0)
 
-        btn_copy = Gtk.Button(label="Copy (Ctrl+Enter)")
-        btn_copy.get_style_context().add_class("suggested-action")
-        btn_copy.connect("clicked", self.on_copy_clicked)
-        bbox.append(btn_copy)
+    # Text Area
+    scrolled_window = Gtk::ScrolledWindow.new
+    @text_view = Gtk::TextView.new
+    @text_view.wrap_mode = :word_char
+    @text_view.left_margin = 10
+    @text_view.right_margin = 10
+    @text_view.top_margin = 10
+    @text_view.bottom_margin = 10
 
-        # Key Controller for Ctrl+Enter
-        key_controller = Gtk.EventControllerKey()
-        key_controller.set_propagation_phase(Gtk.PropagationPhase.CAPTURE) # Capture event before TextView consumes it
-        key_controller.connect("key-pressed", self.on_key_pressed)
-        window.add_controller(key_controller)
+    # CSS for larger font
+    css_provider = Gtk::CssProvider.new
+    css_provider.load_from_data("textview { font-size: 16pt; font-family: Sans; }")
+    @text_view.style_context.add_provider(css_provider, Gtk::StyleProvider::PRIORITY_APPLICATION)
 
-        window.present()
+    @text_buffer = @text_view.buffer
+    scrolled_window.add(@text_view)
+    vbox.pack_start(scrolled_window, :expand => true, :fill => true, :padding => 0)
 
-    def on_key_pressed(self, controller, keyval, keycode, state):
-        # Escape to close
-        if keyval == Gdk.KEY_Escape:
-            self.get_active_window().close()
-            return True
-        
-        # Ctrl+Enter (or Ctrl+Return) to Copy & Close
-        if (state & Gdk.ModifierType.CONTROL_MASK):
-            if keyval == Gdk.KEY_Return or keyval == Gdk.KEY_KP_Enter:
-                self.on_copy_clicked(None)
-                return True
-        
-        return False
+    # Buttons
+    bbox = Gtk::Box.new(:horizontal, 10)
+    bbox.halign = :end
+    vbox.pack_start(bbox, :expand => false, :fill => false, :padding => 0)
 
-    def on_copy_clicked(self, button):
-        start_iter = self.text_buffer.get_start_iter()
-        end_iter = self.text_buffer.get_end_iter()
-        text = self.text_buffer.get_text(start_iter, end_iter, True)
-        
-        if text:
-            try:
-                # Use wl-copy specifically as requested for Omarchy integration
-                p = subprocess.Popen(['wl-copy'], stdin=subprocess.PIPE)
-                p.communicate(input=text.encode('utf-8'))
-                
-                # Notify
-                subprocess.run(['notify-send', 'Copied!', 'Text saved to clipboard.'])
-            except Exception as e:
-                print(f"Error: {e}")
-        
-        self.get_active_window().close()
+    btn_cancel = Gtk::Button.new(:label => "Cancel")
+    btn_cancel.signal_connect "clicked" do
+      window.close
+    end
+    bbox.pack_start(btn_cancel, :expand => false, :fill => false, :padding => 0)
 
-if __name__ == "__main__":
-    app = EmergencyInputApp()
-    app.run(sys.argv)
+    btn_copy = Gtk::Button.new(:label => "Copy (Ctrl+Enter)")
+    btn_copy.style_context.add_class("suggested-action")
+    btn_copy.signal_connect "clicked" do
+      do_copy(window)
+    end
+    bbox.pack_start(btn_copy, :expand => false, :fill => false, :padding => 0)
+
+    # Key Capture
+    # In GTK3, we connect to 'key-press-event' on the window.
+    # It returns true to stop propagation.
+    window.signal_connect "key-press-event" do |widget, event|
+      handle_keypress(window, event)
+    end
+
+    window.show_all
+  end
+
+  def handle_keypress(window, event)
+    keyval = event.keyval
+    state = event.state
+
+    # Escape to close
+    if keyval == Gdk::Keyval::KEY_Escape
+      window.close
+      return true
+    end
+
+    # Ctrl+Enter
+    if state.control_mask?
+      if keyval == Gdk::Keyval::KEY_Return || keyval == Gdk::Keyval::KEY_KP_Enter
+        do_copy(window)
+        return true
+      end
+    end
+
+    false
+  end
+
+  def do_copy(window)
+    # Correct method for Gtk::TextBuffer is get_text
+    start_iter = @text_buffer.start_iter
+    end_iter = @text_buffer.end_iter
+    text = @text_buffer.get_text(start_iter, end_iter, true)
+    
+    if text && !text.empty?
+      begin
+        # Use IO.popen for cleaner piping to wl-copy
+        IO.popen(['wl-copy'], 'w') do |io|
+          io.write(text)
+        end
+        # Use spawn for notify-send to avoid blocking
+        pid = spawn("notify-send", "Copied!", "Text saved to clipboard.")
+        Process.detach(pid)
+      rescue => e
+        puts "Error: #{e.message}"
+      end
+    end
+
+    window.close
+  end
+end
+
+EmergencyInputApp.new.run

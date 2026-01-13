@@ -1,13 +1,14 @@
 # Omarchy Emergency JP Input
 
 A lightweight helper for emergency Japanese input in Hyprland environments.
-Uses a minimal Python GTK4 script to ensure **Ctrl+Enter** works reliably for copying text, while maintaining full IME compatibility.
+Implemented in **Ruby** (GTK3) to ensure a clean, reliable, and modifiable script without Python dependencies.
 
 ## Requirement
 
-- `python3-gobject` (Standard on most Linux desktops)
-- `wl-clipboard` (for `wl-copy`)
-- `fcitx5` (running in the background)
+- `ruby`
+- `ruby-gtk3` (Arch: `ruby-gtk3`, Debian/Ubuntu: `ruby-gtk3`)
+- `wl-clipboard`
+- `fcitx5`
 
 ## Installation
 
@@ -35,7 +36,5 @@ Reload Hyprland (`hyprctl reload`) to apply.
 ## Usage
 
 1. Press `Super + J` (Default).
-2. Type text in the window (IME works normally).
-   - `Enter`: Confirm conversion or New line.
+2. Type text in the window.
 3. **Press `Ctrl + Enter`**: Copies text to clipboard and closes the window.
-   - Or click "Copy" button.
