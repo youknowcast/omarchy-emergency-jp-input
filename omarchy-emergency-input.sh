@@ -3,6 +3,8 @@ require 'gtk3'
 require 'open3'
 
 class EmergencyInputApp
+  IME_ACTIVATE_DELAY_MS = 150
+
   def initialize
     @app = Gtk::Application.new("com.omarchy.emergency.input", :flags_none)
 
@@ -78,7 +80,35 @@ class EmergencyInputApp
       handle_keypress(window, event)
     end
 
+    # This window exists to type Japanese, so switch the IME on for it instead
+    # of making the user reach for Zenkaku_Hankaku first. Only the first focus
+    # does it, so a deliberate switch back to direct input is left alone.
+    window.signal_connect "focus-in-event" do |widget, event|
+      enable_ime
+      false
+    end
+
     window.show_all
+    @text_view.grab_focus
+  end
+
+  # fcitx5 activates the input method of whichever context currently has focus,
+  # and it only learns about this window a moment after GTK reports focus-in.
+  # Firing immediately would land before that and be ignored.
+  def enable_ime
+    return if @ime_activated
+
+    @ime_activated = true
+
+    GLib::Timeout.add(IME_ACTIVATE_DELAY_MS) do
+      begin
+        pid = spawn("fcitx5-remote", "-o", :out => File::NULL, :err => File::NULL)
+        Process.detach(pid)
+      rescue SystemCallError
+        # No fcitx5 on this box: the window still works, just in direct input.
+      end
+      false
+    end
   end
 
   def handle_keypress(window, event)

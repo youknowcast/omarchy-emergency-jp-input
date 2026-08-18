@@ -12,6 +12,7 @@ Implemented in **Ruby** (GTK3) for simplicity and reliability, ensuring proper h
   - `Ctrl + Enter`: Copy text to clipboard and close window.
   - `Enter`: Confirm IME conversion or insert newline.
   - `Esc`: Cancel and close.
+- **IME On By Default**: Activates the input method as soon as the window takes focus, so you can start typing Japanese without pressing Zenkaku_Hankaku first. Only the first focus does this, so switching back to direct input sticks.
 - **Clipboard Integration**: Uses `wl-copy` to seamlessly integrate with Wayland clipboard managers (like `cliphist`).
 - **Hyprland Ready**: Comes with window rules to float, center, and stay focused.
 
@@ -52,7 +53,7 @@ Reload Hyprland (`hyprctl reload`) to apply changes.
 
 1. Press **`Super + U`** (Default keybinding).
 2. The window appears in the center of the screen.
-3. Type your text. IME functions (Henkan) work normally.
+3. Start typing. The IME is already on, and conversion (Henkan) works normally.
 4. When finished, press **`Ctrl + Enter`** (or click the Copy button).
 5. The text is copied to your clipboard and the window closes.
 6. Paste (`Ctrl + V`) into your target application.
@@ -64,3 +65,22 @@ Ensure you have the ruby bindings installed via your package manager (`ruby-gtk3
 
 ### Window not floating?
 Ensure you have sourced the config file in your `hyprland.conf` and reloaded.
+
+### The IME does not switch on (or every window is stuck in Japanese)
+Check that your fcitx5 group has a keyboard layout input method **first**, before `mozc`:
+
+```bash
+gdbus call --session --dest org.fcitx.Fcitx5 --object-path /controller \
+  --method org.fcitx.Fcitx.Controller1.InputMethodGroupInfo "Default"
+# Expected: ('jp', [('keyboard-jp', ''), ('mozc', '')])
+```
+
+fcitx5's "off" state means *the first input method in the group*. A group holding only `mozc` therefore has no real off state: every newly created input context comes up in Japanese, `ActiveByDefault=False` and `AllowInputMethodForPassword=False` look like they are being ignored, and `fcitx5-remote -o` has nothing to switch to. Add the layout entry through `fcitx5-configtool`, or directly:
+
+```bash
+gdbus call --session --dest org.fcitx.Fcitx5 --object-path /controller \
+  --method org.fcitx.Fcitx.Controller1.SetInputMethodGroupInfo \
+  "Default" "jp" "[('keyboard-jp', ''), ('mozc', '')]"
+gdbus call --session --dest org.fcitx.Fcitx5 --object-path /controller \
+  --method org.fcitx.Fcitx.Controller1.Save
+```
